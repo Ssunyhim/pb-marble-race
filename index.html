@@ -242,6 +242,18 @@ import { getDatabase, ref, onValue, set, update, remove, push, get, serverTimest
 const $=s=>document.querySelector(s);
 const isJoin = location.hash.replace('#','').toLowerCase()==='join';
 
+/* ===== Firebase 설정값 (여기에 박아둠 → QR/주소가 짧아지고 휴대폰은 설정 불필요) ===== */
+const EMBEDDED_CONFIG = {
+  apiKey: "AIzaSyANS7DhYB2f0STnV8uxHDMxyv9k0W9QBjU",
+  authDomain: "pb-marble-race.firebaseapp.com",
+  databaseURL: "https://pb-marble-race-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "pb-marble-race",
+  storageBucket: "pb-marble-race.firebasestorage.app",
+  messagingSenderId: "59736222497",
+  appId: "1:59736222497:web:022fc6452b233f1ae72c60",
+  measurementId: "G-SDES2XMTF5"
+};
+
 /* ---------------- Firebase config handling ---------------- */
 const LS_KEY='pb_marble_fbcfg';
 function parseConfig(text){
@@ -267,10 +279,13 @@ function connectFirebase(cfg){
 }
 
 /* ---------------- Routing ---------------- */
+function hasEmbedded(){ return EMBEDDED_CONFIG && EMBEDDED_CONFIG.apiKey && EMBEDDED_CONFIG.apiKey.indexOf('여기')===-1; }
+
 function boot(){
   const saved=localStorage.getItem(LS_KEY);
   if(isJoin){
-    // phone join needs config too. It is embedded in URL as ?c=... by host's QR, OR localStorage.
+    // 휴대폰 참가 화면: 임베드 설정 우선, 없으면 URL/localStorage fallback
+    if(hasEmbedded()){ try{connectFirebase(EMBEDDED_CONFIG); startJoin(); return;}catch(e){} }
     const urlCfg=getCfgFromUrl();
     if(urlCfg){ try{connectFirebase(urlCfg); startJoin(); return;}catch(e){} }
     if(saved){ try{connectFirebase(JSON.parse(saved)); startJoin(); return;}catch(e){} }
@@ -279,9 +294,10 @@ function boot(){
     $('#gate').style.display='none';
     return;
   }
-  // host
+  // 진행자 화면: 임베드 설정이 있으면 설정 입력 건너뜀
+  if(hasEmbedded()){ try{connectFirebase(EMBEDDED_CONFIG); $('#gate').style.display='none'; startHost(); return;}catch(e){} }
   if(saved){ try{connectFirebase(JSON.parse(saved)); $('#gate').style.display='none'; startHost(); return;}catch(e){} }
-  // show gate
+  // (설정값이 비어있을 때만) 입력 화면 표시
   $('#cfgSave').onclick=()=>{
     try{
       const cfg=parseConfig($('#cfgInput').value);
@@ -301,9 +317,9 @@ function getCfgFromUrl(){
   try{ return JSON.parse(decodeURIComponent(escape(atob(c)))); }catch(e){ return null; }
 }
 function buildJoinUrl(cfg){
-  const b64=btoa(unescape(encodeURIComponent(JSON.stringify(cfg))));
+  // 설정값이 코드에 임베드되어 있으므로 URL은 짧게 #join 만 붙인다
   const base=location.href.split('#')[0].split('?')[0];
-  return `${base}?c=${b64}#join`;
+  return `${base}#join`;
 }
 
 /* ============================================================
@@ -312,8 +328,7 @@ function buildJoinUrl(cfg){
 let players={};      // id -> name  (from DB)
 function startHost(){
   $('#host').classList.add('show');
-  const cfg=JSON.parse(localStorage.getItem(LS_KEY));
-  const joinUrl=buildJoinUrl(cfg);
+  const joinUrl=buildJoinUrl();
   $('#joinUrl').textContent=joinUrl;
   if(window.QRCode) QRCode.toDataURL(joinUrl,{margin:1,width:480},(e,u)=>{if(!e)$('#qr').innerHTML=`<img src="${u}">`;});
   $('#copyBtn').onclick=()=>{navigator.clipboard.writeText(joinUrl);$('#copyBtn').textContent='복사됨!';
