@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>PB 마케팅 올핸즈 · Marble Race</title>
+<style>
+  :root{
+    --pb1:#0a4d9c; --pb2:#1c75d4; --gold:#ffcb3d; --bg:#0b1020; --panel:#121a33;
+    --line:#26304f; --text:#eef2ff; --sub:#9fb0d8; --ok:#5ddc8a; --bad:#ff6b6b;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{
+    font-family:'Pretendard','Apple SD Gothic Neo',-apple-system,system-ui,'Malgun Gothic',sans-serif;
+    background:radial-gradient(1200px 800px at 70% -10%,#16224a 0%,var(--bg) 60%);
+    color:var(--text); overflow:hidden;
+  }
+  #app{position:fixed;inset:0;display:flex;align-items:center;justify-content:center}
+  .card{background:linear-gradient(180deg,var(--panel),#0e1530);border:1px solid var(--line);
+    border-radius:18px;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,.4)}
+  input,textarea,button{font-family:inherit}
+  button{cursor:pointer;border:none;border-radius:12px;padding:12px 16px;font-weight:700;font-size:14px;
+    background:var(--pb2);color:#fff;transition:.15s}
+  button:hover{filter:brightness(1.08)}
+  button.ghost{background:#1a2547;color:var(--text);border:1px solid var(--line)}
+  button.gold{background:linear-gradient(135deg,var(--gold),#ffb000);color:#3a2a00}
+  button.bad{background:#3a1622;color:#ffb3b3;border:1px solid #5a2030}
+  button:disabled{opacity:.4;cursor:not-allowed}
+  .brand{display:flex;align-items:center;gap:12px;margin-bottom:6px}
+  .logo{width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,var(--pb2),var(--pb1));
+    display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;font-size:18px}
+  h1{font-size:22px;letter-spacing:-.5px}
+  .sub{color:var(--sub);font-size:13px;margin-top:2px}
+
+  /* ---------- Config gate ---------- */
+  #gate{width:min(680px,94vw);padding:26px}
+  #gate textarea{width:100%;height:170px;background:#0a1126;border:1px solid var(--line);color:var(--text);
+    border-radius:12px;padding:14px;font-size:13px;font-family:ui-monospace,Menlo,Consolas,monospace;resize:vertical}
+  #gate .err{color:var(--bad);font-size:13px;margin-top:8px;min-height:18px}
+  .step{font-size:13px;color:var(--sub);line-height:1.7;margin:12px 0}
+
+  /* ---------- Host screen ---------- */
+  #host{display:none;width:min(1120px,96vw);height:min(94vh,860px);gap:18px;padding:16px}
+  #host.show{display:flex}
+  #hLeft{flex:1.25;display:flex;flex-direction:column}
+  #hRight{flex:1;display:flex;flex-direction:column;align-items:center}
+  .prize{margin:12px 0;padding:12px 14px;border-radius:14px;
+    background:linear-gradient(135deg,rgba(255,203,61,.16),rgba(255,203,61,.04));
+    border:1px solid rgba(255,203,61,.4);font-weight:700}
+  .prize b{color:var(--gold)}
+  .statusrow{display:flex;gap:10px;align-items:center;margin:10px 0}
+  .pill{padding:6px 12px;border-radius:999px;font-size:13px;font-weight:700;border:1px solid var(--line)}
+  .pill.open{background:rgba(93,220,138,.15);color:var(--ok);border-color:rgba(93,220,138,.4)}
+  .pill.closed{background:rgba(255,107,107,.12);color:var(--bad);border-color:rgba(255,107,107,.35)}
+  .timer{font-size:13px;color:var(--sub)}
+  .timer b{color:var(--gold);font-size:15px}
+  .ctrls{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 10px}
+  .ctrls .seconds{display:flex;align-items:center;gap:6px;background:#0a1126;border:1px solid var(--line);
+    border-radius:10px;padding:4px 8px;font-size:13px;color:var(--sub)}
+  .ctrls .seconds input{width:54px;background:transparent;border:none;color:var(--text);font-size:14px;text-align:center;outline:none}
+  .count{font-size:13px;color:var(--sub);margin:8px 0 6px}
+  #plist{flex:1;overflow:auto;border:1px solid var(--line);border-radius:14px;padding:8px;background:#0a1126;min-height:120px}
+  .chip{display:inline-flex;align-items:center;gap:6px;background:#16224a;border:1px solid var(--line);
+    margin:4px;padding:6px 10px;border-radius:999px;font-size:13px;animation:chipIn .3s ease}
+  .chip span.x{cursor:pointer;color:var(--sub);font-weight:800}
+  .chip span.x:hover{color:var(--bad)}
+  @keyframes chipIn{from{transform:scale(.6);opacity:0}to{transform:scale(1);opacity:1}}
+  #qr{width:240px;height:240px;background:#fff;border-radius:16px;padding:10px;margin-top:6px}
+  #qr img{width:100%;height:100%}
+  .joinurl{margin-top:8px;width:100%;font-size:12px;background:#0a1126;border:1px solid var(--line);
+    color:var(--sub);border-radius:10px;padding:8px 10px;text-align:center;word-break:break-all}
+  .hint{font-size:12px;color:var(--sub);text-align:center;margin-top:10px;line-height:1.5}
+  .startbar{margin-top:10px;display:flex;gap:8px}
+  .opt{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--sub);margin-top:8px}
+  .opt input{accent-color:var(--pb2)}
+  .scanned{font-size:34px;font-weight:900;color:var(--gold);text-align:center;margin-top:8px}
+
+  /* ---------- Phone join screen ---------- */
+  #join{display:none;width:min(440px,94vw);padding:26px;text-align:center}
+  #join.show{display:block}
+  #join .big{font-size:26px;font-weight:900;letter-spacing:-1px;margin-top:6px}
+  #join input[type=text]{width:100%;margin-top:18px;background:#0a1126;border:1px solid var(--line);
+    color:var(--text);border-radius:14px;padding:16px;font-size:18px;text-align:center;outline:none}
+  #join input[type=text]:focus{border-color:var(--pb2)}
+  #join button{width:100%;margin-top:14px;font-size:17px;padding:16px}
+  #joinMsg{margin-top:16px;font-size:14px;min-height:20px;color:var(--sub)}
+  #joinDone{display:none}
+  #joinDone .check{font-size:64px;margin-bottom:8px}
+  #joinDone .nm{font-size:30px;font-weight:900;color:var(--gold)}
+  #joinClosed{display:none}
+  #joinClosed .x{font-size:64px}
+
+  /* ---------- Game ---------- */
+  #game{display:none;position:fixed;inset:0}
+  #game.show{display:block}
+  canvas{display:block;width:100%;height:100%}
+  #hud{position:fixed;top:14px;left:0;right:0;display:flex;justify-content:center;pointer-events:none}
+  #hudInner{display:flex;gap:18px;align-items:center;background:rgba(8,12,28,.55);
+    backdrop-filter:blur(8px);border:1px solid var(--line);border-radius:999px;padding:8px 18px}
+  #hudInner .t{font-weight:800;font-size:15px}
+  #hudInner .alive{color:var(--gold)}
+  #status{position:fixed;left:50%;top:30%;transform:translateX(-50%);text-align:center;pointer-events:none;
+    text-shadow:0 4px 20px rgba(0,0,0,.6)}
+  #status .big{font-size:64px;font-weight:900;letter-spacing:-2px}
+  .topright{position:fixed;top:14px;right:16px;display:flex;gap:8px}
+  .topright button{background:rgba(8,12,28,.55);border:1px solid var(--line)}
+
+  /* ---------- Winner ---------- */
+  #winner{display:none;position:fixed;inset:0;align-items:center;justify-content:center;flex-direction:column;
+    background:radial-gradient(800px 600px at 50% 30%,rgba(255,203,61,.18),rgba(8,12,28,.92));text-align:center}
+  #winner.show{display:flex}
+  #winner .crown{font-size:80px;animation:pop .6s ease}
+  #winner .label{color:var(--gold);font-weight:800;letter-spacing:4px;margin:10px 0}
+  #winner .name{font-size:84px;font-weight:900;letter-spacing:-2px;
+    background:linear-gradient(135deg,#fff,var(--gold));-webkit-background-clip:text;background-clip:text;color:transparent}
+  #winner .prize2{margin-top:18px;font-size:22px}#winner .prize2 b{color:var(--gold)}
+  #winner .credit{margin-top:34px;color:var(--sub);font-size:13px;letter-spacing:2px}
+  #winner button{margin-top:26px}
+  @keyframes pop{0%{transform:scale(.2);opacity:0}70%{transform:scale(1.15)}100%{transform:scale(1)}}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ===== Config gate (host only, first run) ===== -->
+  <div id="gate" class="card">
+    <div class="brand"><div class="logo">PB</div>
+      <div><h1>Marble Race · 설정</h1><div class="sub">처음 1회만 Firebase 설정값을 넣으면 됩니다</div></div></div>
+    <div class="step">
+      Firebase 콘솔에서 복사한 <b>firebaseConfig</b> 객체를 아래에 통째로 붙여넣고 저장하세요.
+      한 번 저장하면 이 브라우저에 기억되어 다음부터는 바로 호스트 화면이 열립니다.
+      <br>※ <b>databaseURL</b> 줄이 반드시 포함되어야 합니다.
+    </div>
+    <textarea id="cfgInput" placeholder='const firebaseConfig = {
+  apiKey: "AIza...",
+  authDomain: "pb-marble-race.firebaseapp.com",
+  databaseURL: "https://pb-marble-race-default-rtdb.firebaseio.com",
+  projectId: "pb-marble-race",
+  storageBucket: "pb-marble-race.appspot.com",
+  messagingSenderId: "1234567890",
+  appId: "1:1234567890:web:abcd"
+};'></textarea>
+    <div class="err" id="cfgErr"></div>
+    <div style="display:flex;gap:8px;margin-top:10px">
+      <button class="gold" id="cfgSave" style="flex:1">설정 저장하고 시작</button>
+      <button class="ghost" id="cfgClear">저장된 설정 지우기</button>
+    </div>
+  </div>
+
+  <!-- ===== Host screen ===== -->
+  <div id="host">
+    <div class="card" id="hLeft">
+      <div class="brand"><div class="logo">PB</div>
+        <div><h1>Marble Race · 진행자</h1><div class="sub">마지막까지 살아남는 단 한 명이 우승</div></div></div>
+      <div class="prize">🎁 우승 상품 · 기프트카드 <b>50,000원</b> (1명)</div>
+
+      <div class="statusrow">
+        <span class="pill closed" id="statePill">참가 마감</span>
+        <span class="timer" id="timerLabel"></span>
+      </div>
+      <div class="ctrls">
+        <button class="gold" id="openBtn">참가 열기 ▶</button>
+        <button class="bad" id="closeBtn" style="display:none">참가 마감 ■</button>
+        <label class="seconds">제한시간 <input type="number" id="limitSec" value="60" min="0" max="600"> 초</label>
+        <button class="ghost" id="resetBtn">명단 초기화</button>
+      </div>
+
+      <div class="count">참가자 <b id="cnt">0</b>명</div>
+      <div id="plist"></div>
+
+      <label class="opt"><input type="checkbox" id="optName" checked> 구슬에 이름표 표시</label>
+      <div class="startbar">
+        <button class="gold" id="startBtn" style="flex:1;font-size:16px;padding:14px" disabled>레이스 시작 ▶</button>
+      </div>
+    </div>
+
+    <div class="card" id="hRight">
+      <div style="font-weight:800;margin-bottom:4px">📱 QR로 참가</div>
+      <div class="sub" style="text-align:center">휴대폰 카메라로 스캔 → 이름 입력</div>
+      <div id="qr"></div>
+      <div class="joinurl" id="joinUrl"></div>
+      <button class="ghost" style="margin-top:8px;width:100%" id="copyBtn">참가 링크 복사</button>
+      <div class="scanned"><span id="liveCnt">0</span>명 참가 중</div>
+      <div class="hint" id="hostHint">‘참가 열기’를 누르면 제한시간 카운트다운이 시작되고,<br>0초가 되면 자동으로 마감됩니다.</div>
+    </div>
+  </div>
+
+  <!-- ===== Phone join screen ===== -->
+  <div id="join" class="card">
+    <div id="joinForm">
+      <div class="brand" style="justify-content:center"><div class="logo">PB</div></div>
+      <div class="big">Marble Race 참가</div>
+      <div class="sub" style="margin-top:6px">이름을 입력하고 참가하세요<br>🎁 우승 상품: 기프트카드 5만원</div>
+      <input type="text" id="joinName" placeholder="이름 입력" maxlength="12" autocomplete="off">
+      <button class="gold" id="joinBtn">참가하기</button>
+      <div id="joinMsg"></div>
+    </div>
+    <div id="joinDone">
+      <div class="check">✅</div>
+      <div>참가 완료!</div>
+      <div class="nm" id="joinDoneName">—</div>
+      <div class="sub" style="margin-top:14px">메인 화면에서 레이스를 지켜봐 주세요.<br>행운을 빕니다! 🍀</div>
+    </div>
+    <div id="joinClosed">
+      <div class="x">⏰</div>
+      <div class="big" style="color:var(--bad)">참가 마감</div>
+      <div class="sub" style="margin-top:10px">아쉽지만 참가 시간이 종료되었어요.<br>다음 기회에 함께해요!</div>
+    </div>
+  </div>
+
+  <!-- ===== Game ===== -->
+  <div id="game">
+    <canvas id="cv"></canvas>
+    <div id="hud"><div id="hudInner">
+      <div class="t">⏱ <span id="raceTimer">0.0</span>s</div>
+      <div class="t alive">🏃 <span id="aliveN">0</span>명 생존</div>
+      <div class="t" id="phaseT">레이스 진행 중</div>
+    </div></div>
+    <div id="status"></div>
+    <div class="topright"><button id="backBtn">← 진행자 화면</button></div>
+  </div>
+
+  <!-- ===== Winner ===== -->
+  <div id="winner">
+    <div class="crown">👑</div>
+    <div class="label">CHAMPION</div>
+    <div class="name" id="winName">—</div>
+    <div class="prize2">🎁 기프트카드 <b>50,000원</b> 주인공!</div>
+    <div class="credit">PB 마케팅본부 · Produced by 오새힘</div>
+    <button class="gold" id="againBtn">다시 하기</button>
+  </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getDatabase, ref, onValue, set, update, remove, push, get, serverTimestamp, onDisconnect }
+  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+const $=s=>document.querySelector(s);
+const isJoin = location.hash.replace('#','').toLowerCase()==='join';
+
+/* ---------------- Firebase config handling ---------------- */
+const LS_KEY='pb_marble_fbcfg';
+function parseConfig(text){
+  // accept either pure JSON-ish object or "const firebaseConfig = {...};"
+  let t=text.trim();
+  const m=t.match(/\{[\s\S]*\}/);
+  if(!m) throw new Error('설정 객체 { ... } 를 찾을 수 없습니다.');
+  let obj=m[0];
+  // turn JS object literal into JSON: quote keys, normalize quotes, drop trailing commas
+  obj=obj.replace(/([{,]\s*)([A-Za-z0-9_]+)\s*:/g,'$1"$2":')
+         .replace(/'/g,'"')
+         .replace(/,(\s*[}\]])/g,'$1');
+  const cfg=JSON.parse(obj);
+  if(!cfg.apiKey) throw new Error('apiKey가 없습니다.');
+  if(!cfg.databaseURL) throw new Error('databaseURL이 없습니다. Realtime Database를 켰는지 확인하세요.');
+  return cfg;
+}
+
+let app,db, GAME='race1'; // single shared game room
+function connectFirebase(cfg){
+  app=initializeApp(cfg);
+  db=getDatabase(app);
+}
+
+/* ---------------- Routing ---------------- */
+function boot(){
+  const saved=localStorage.getItem(LS_KEY);
+  if(isJoin){
+    // phone join needs config too. It is embedded in URL as ?c=... by host's QR, OR localStorage.
+    const urlCfg=getCfgFromUrl();
+    if(urlCfg){ try{connectFirebase(urlCfg); startJoin(); return;}catch(e){} }
+    if(saved){ try{connectFirebase(JSON.parse(saved)); startJoin(); return;}catch(e){} }
+    $('#join').classList.add('show');
+    $('#joinMsg').textContent='설정이 없어 연결할 수 없습니다. 진행자 QR로 다시 접속해 주세요.';
+    $('#gate').style.display='none';
+    return;
+  }
+  // host
+  if(saved){ try{connectFirebase(JSON.parse(saved)); $('#gate').style.display='none'; startHost(); return;}catch(e){} }
+  // show gate
+  $('#cfgSave').onclick=()=>{
+    try{
+      const cfg=parseConfig($('#cfgInput').value);
+      connectFirebase(cfg);
+      localStorage.setItem(LS_KEY,JSON.stringify(cfg));
+      $('#gate').style.display='none'; startHost();
+    }catch(e){ $('#cfgErr').textContent='오류: '+e.message; }
+  };
+  $('#cfgClear').onclick=()=>{localStorage.removeItem(LS_KEY);$('#cfgInput').value='';$('#cfgErr').textContent='저장된 설정을 지웠습니다.';};
+}
+
+/* config carried to phones via QR url param (base64) so phones need no setup */
+function getCfgFromUrl(){
+  const u=new URL(location.href);
+  const c=u.searchParams.get('c');
+  if(!c) return null;
+  try{ return JSON.parse(decodeURIComponent(escape(atob(c)))); }catch(e){ return null; }
+}
+function buildJoinUrl(cfg){
+  const b64=btoa(unescape(encodeURIComponent(JSON.stringify(cfg))));
+  const base=location.href.split('#')[0].split('?')[0];
+  return `${base}?c=${b64}#join`;
+}
+
+/* ============================================================
+   HOST
+   ============================================================ */
+let players={};      // id -> name  (from DB)
+function startHost(){
+  $('#host').classList.add('show');
+  const cfg=JSON.parse(localStorage.getItem(LS_KEY));
+  const joinUrl=buildJoinUrl(cfg);
+  $('#joinUrl').textContent=joinUrl;
+  if(window.QRCode) QRCode.toDataURL(joinUrl,{margin:1,width:480},(e,u)=>{if(!e)$('#qr').innerHTML=`<img src="${u}">`;});
+  $('#copyBtn').onclick=()=>{navigator.clipboard.writeText(joinUrl);$('#copyBtn').textContent='복사됨!';
+    setTimeout(()=>$('#copyBtn').textContent='참가 링크 복사',1200);};
+
+  // live players listener
+  onValue(ref(db,`${GAME}/players`),snap=>{
+    players=snap.val()||{};
+    renderPlayers();
+  });
+  // join-open state listener
+  onValue(ref(db,`${GAME}/state`),snap=>{
+    const st=snap.val()||{};
+    updateStateUI(st);
+  });
+
+  $('#openBtn').onclick=openJoin;
+  $('#closeBtn').onclick=()=>closeJoin(true);
+  $('#resetBtn').onclick=resetPlayers;
+  $('#startBtn').onclick=()=>{ closeJoin(false); startRace(); };
+  $('#backBtn').onclick=()=>{stopRace();$('#game').classList.remove('show');$('#winner').classList.remove('show');$('#host').classList.add('show');};
+  $('#againBtn').onclick=()=>{$('#winner').classList.remove('show');$('#host').classList.add('show');};
+}
+
+let countdownIv=null;
+function openJoin(){
+  const limit=parseInt($('#limitSec').value||'0',10);
+  const closesAt = limit>0 ? Date.now()+limit*1000 : 0;
+  set(ref(db,`${GAME}/state`),{open:true,closesAt});
+}
+function closeJoin(manual){
+  update(ref(db,`${GAME}/state`),{open:false,closesAt:0});
+}
+function resetPlayers(){
+  if(!confirm('참가자 명단을 모두 지울까요?'))return;
+  remove(ref(db,`${GAME}/players`));
+}
+function updateStateUI(st){
+  const open=!!st.open;
+  $('#statePill').textContent=open?'참가 받는 중':'참가 마감';
+  $('#statePill').className='pill '+(open?'open':'closed');
+  $('#openBtn').style.display=open?'none':'inline-block';
+  $('#closeBtn').style.display=open?'inline-block':'none';
+  $('#limitSec').disabled=open;
+  // countdown
+  if(countdownIv){clearInterval(countdownIv);countdownIv=null;}
+  if(open && st.closesAt){
+    const tick=()=>{
+      const left=Math.max(0,Math.ceil((st.closesAt-Date.now())/1000));
+      $('#timerLabel').innerHTML=`마감까지 <b>${left}</b>초`;
+      if(left<=0){clearInterval(countdownIv);countdownIv=null;closeJoin(true);}
+    };
+    tick();countdownIv=setInterval(tick,250);
+  }else if(open){
+    $('#timerLabel').textContent='제한시간 없음 (수동 마감)';
+  }else{
+    $('#timerLabel').textContent='';
+  }
+}
+function renderPlayers(){
+  const entries=Object.entries(players);
+  $('#cnt').textContent=entries.length;
+  $('#liveCnt').textContent=entries.length;
+  $('#plist').innerHTML=entries.map(([id,n])=>
+    `<span class="chip">${escapeHtml(n)}<span class="x" data-id="${id}">✕</span></span>`).join('');
+  $('#startBtn').disabled=entries.length<2;
+  $('#plist').querySelectorAll('.x').forEach(x=>x.onclick=()=>remove(ref(db,`${GAME}/players/${x.dataset.id}`)));
+}
+function escapeHtml(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+
+/* ============================================================
+   PHONE JOIN
+   ============================================================ */
+function startJoin(){
+  $('#gate').style.display='none';
+  $('#join').classList.add('show');
+  let isOpen=false, closesAt=0;
+  onValue(ref(db,`${GAME}/state`),snap=>{
+    const st=snap.val()||{};isOpen=!!st.open;closesAt=st.closesAt||0;
+    refreshJoinUI();
+  });
+  function refreshJoinUI(){
+    const submitted=$('#joinDone').style.display==='block';
+    if(submitted)return;
+    if(!isOpen){
+      $('#joinForm').style.display='none';
+      $('#joinClosed').style.display='block';
+    }else{
+      $('#joinForm').style.display='block';
+      $('#joinClosed').style.display='none';
+      if(closesAt){
+        const left=Math.max(0,Math.ceil((closesAt-Date.now())/1000));
+        $('#joinMsg').textContent=`마감까지 ${left}초`;
+      }else $('#joinMsg').textContent='';
+    }
+  }
+  setInterval(refreshJoinUI,500);
+
+  $('#joinBtn').onclick=async()=>{
+    const name=$('#joinName').value.trim().slice(0,12);
+    if(!name){$('#joinMsg').textContent='이름을 입력해 주세요.';return;}
+    // re-check open + time at submit moment
+    const st=(await get(ref(db,`${GAME}/state`))).val()||{};
+    const stillOpen=!!st.open && (!st.closesAt || st.closesAt>Date.now());
+    if(!stillOpen){
+      $('#joinForm').style.display='none';$('#joinClosed').style.display='block';return;
+    }
+    const pRef=push(ref(db,`${GAME}/players`));
+    await set(pRef,name);
+    // remove the entry if this phone disconnects BEFORE race? we keep it; race uses snapshot at start.
+    $('#joinForm').style.display='none';
+    $('#joinDone').style.display='block';
+    $('#joinDoneName').textContent=name;
+  };
+  $('#joinName').addEventListener('keydown',e=>{if(e.key==='Enter')$('#joinBtn').click();});
+}
+
+/* ============================================================
+   GAME (physics + AI camera + slow-mo finish)
+   ============================================================ */
+const cv=$('#cv'), ctx=cv.getContext('2d');
+let W=0,H=0,DPR=1;
+function resize(){DPR=Math.min(window.devicePixelRatio||1,2);W=window.innerWidth;H=window.innerHeight;
+  cv.width=W*DPR;cv.height=H*DPR;cv.style.width=W+'px';cv.style.height=H+'px';ctx.setTransform(DPR,0,0,DPR,0,0);}
+window.addEventListener('resize',resize);resize();
+
+const COURSE={VW:900,top:60,bottom:0,wallPad:30};
+let walls=[],pegs=[],spinners=[],balls=[],finishY=0;
+let names=[];
+const palette=['#ff5d5d','#ffb03a','#ffe14d','#5ddc8a','#41c7d8','#5d8bff','#a06bff','#ff6bd6','#ff8f5d','#7be0c0','#c0d35d','#e05d9c'];
+let cam={x:0,y:0,zoom:1,tx:0,ty:0,tz:1};
+let state='idle', elapsed=0, timeScale=1, targetTimeScale=1;
+let aliveCount=0, finishOrder=[], winner=null, lastFrame=0, rafId=0;
+
+const G=1650, REST=0.45, FR=0.985;
+
+function buildCourse(n){
+  walls=[];pegs=[];spinners=[];balls=[];finishOrder=[];winner=null;
+  const VW=COURSE.VW;
+  const sections=Math.max(4,Math.min(5,Math.round(3+n/22)));
+  const segH=330, top=COURSE.top;
+  finishY=top+120+sections*segH+200; COURSE.bottom=finishY+160;
+  walls.push({x1:VW*0.18,y1:top+40,x2:VW*0.40,y2:top+150});
+  walls.push({x1:VW*0.82,y1:top+40,x2:VW*0.60,y2:top+150});
+  const rng=mulberry32(20260707);
+  for(let s=0;s<sections;s++){
+    const baseY=top+150+s*segH, kind=s%4;
+    if(kind===0){const rows=4,cols=7;for(let r=0;r<rows;r++){const yy=baseY+50+r*(segH-90)/rows;const off=(r%2)?VW/cols/2:0;
+      for(let c=0;c<cols;c++){const xx=VW*0.12+off+c*(VW*0.76/(cols-1));if(xx>VW*0.08&&xx<VW*0.92)pegs.push({x:xx,y:yy,r:9});}}}
+    else if(kind===1){for(let k=0;k<2;k++){const yy=baseY+60+k*(segH*0.45);const left=(k%2===0);
+      if(left)walls.push({x1:VW*0.04,y1:yy,x2:VW*0.62,y2:yy+segH*0.30});else walls.push({x1:VW*0.96,y1:yy,x2:VW*0.38,y2:yy+segH*0.30});}}
+    else if(kind===2){spinners.push({x:VW*0.32,y:baseY+segH*0.45,r:110,a:rng()*6,va:1.1,arms:4});
+      spinners.push({x:VW*0.68,y:baseY+segH*0.78,r:110,a:rng()*6,va:-1.1,arms:4});}
+    else{for(let k=0;k<3;k++){const yy=baseY+60+k*(segH*0.30);const left=(k%2===0);
+      if(left)walls.push({x1:VW*0.04,y1:yy,x2:VW*0.58,y2:yy+segH*0.22});else walls.push({x1:VW*0.96,y1:yy,x2:VW*0.42,y2:yy+segH*0.22});}}
+  }
+  walls.push({x1:VW*0.06,y1:finishY-200,x2:VW*0.40,y2:finishY-40});
+  walls.push({x1:VW*0.94,y1:finishY-200,x2:VW*0.60,y2:finishY-40});
+  const cols=Math.ceil(Math.sqrt(n*2)), spreadW=VW*0.6, spreadX=(VW-spreadW)/2;
+  for(let i=0;i<n;i++){const cx=spreadX+(i%cols)*(spreadW/Math.max(1,cols-1||1));const cy=top+10-Math.floor(i/cols)*24;
+    balls.push({id:i,name:names[i],x:cx+(rng()-0.5)*10,y:cy,vx:(rng()-0.5)*30,vy:0,r:12,color:palette[i%palette.length],done:false,glow:0});}
+  aliveCount=n;
+}
+function collideSeg(b,w,surfV=0){const dx=w.x2-w.x1,dy=w.y2-w.y1,L2=dx*dx+dy*dy||1;
+  let t=((b.x-w.x1)*dx+(b.y-w.y1)*dy)/L2;t=Math.max(0,Math.min(1,t));
+  const px=w.x1+t*dx,py=w.y1+t*dy,ox=b.x-px,oy=b.y-py,d2=ox*ox+oy*oy;
+  if(d2<b.r*b.r){const d=Math.sqrt(d2)||0.001,nx=ox/d,ny=oy/d,ov=b.r-d;b.x+=nx*ov;b.y+=ny*ov;
+    const vn=b.vx*nx+b.vy*ny;b.vx-=(1+REST)*vn*nx;b.vy-=(1+REST)*vn*ny;
+    if(surfV){b.vx+=-ny*surfV*0.012;b.vy+=nx*surfV*0.012;}}}
+function stepPhysics(dt){
+  const VW=COURSE.VW;
+  for(const b of balls){if(b.done)continue;
+    b.vy+=G*dt;b.vx*=FR;b.x+=b.vx*dt;b.y+=b.vy*dt;
+    if(b.x<COURSE.wallPad+b.r){b.x=COURSE.wallPad+b.r;b.vx=Math.abs(b.vx)*REST;}
+    if(b.x>VW-COURSE.wallPad-b.r){b.x=VW-COURSE.wallPad-b.r;b.vx=-Math.abs(b.vx)*REST;}
+    for(const p of pegs){const dx=b.x-p.x,dy=b.y-p.y,rr=b.r+p.r,d2=dx*dx+dy*dy;
+      if(d2<rr*rr){const d=Math.sqrt(d2)||0.001,nx=dx/d,ny=dy/d,ov=rr-d;b.x+=nx*ov;b.y+=ny*ov;
+        const vn=b.vx*nx+b.vy*ny;b.vx-=(1+REST)*vn*nx;b.vy-=(1+REST)*vn*ny;b.vx+=(Math.random()-0.5)*22;}}
+    for(const w of walls)collideSeg(b,w);
+    for(const sp of spinners)for(let a=0;a<sp.arms;a++){const ang=sp.a+a*Math.PI*2/sp.arms;
+      collideSeg(b,{x1:sp.x,y1:sp.y,x2:sp.x+Math.cos(ang)*sp.r,y2:sp.y+Math.sin(ang)*sp.r},sp.va*sp.r);}
+    if(!b.done&&b.y>=finishY){b.done=true;b.glow=1;finishOrder.push(b);aliveCount--;}
+  }
+  for(let i=0;i<balls.length;i++){const a=balls[i];if(a.done)continue;
+    for(let j=i+1;j<balls.length;j++){const b=balls[j];if(b.done)continue;
+      const dx=b.x-a.x,dy=b.y-a.y,rr=a.r+b.r,d2=dx*dx+dy*dy;
+      if(d2<rr*rr&&d2>0.0001){const d=Math.sqrt(d2),nx=dx/d,ny=dy/d,ov=(rr-d)/2;
+        a.x-=nx*ov;a.y-=ny*ov;b.x+=nx*ov;b.y+=ny*ov;
+        const vn=(b.vx-a.vx)*nx+(b.vy-a.vy)*ny;if(vn<0){const imp=-(1+REST)*vn/2;a.vx-=imp*nx;a.vy-=imp*ny;b.vx+=imp*nx;b.vy+=imp*ny;}}}}
+}
+function updateCamera(dt){
+  const alive=balls.filter(b=>!b.done);let fx=COURSE.VW/2,fy=200,fz=1;
+  if(state==='finishing'&&alive.length){
+    const last=alive.reduce((m,b)=>b.y>m.y?b:m,alive[0]);
+    fx=last.x;fy=last.y;const dist=Math.max(0,finishY-last.y);
+    fz=dist<200?2.2:1.7;targetTimeScale=dist<240?0.32:0.7;
+  }else if(alive.length){
+    let best=-1,cx=0,cy=0;const lead=Math.max(...alive.map(b=>b.y));
+    for(const b of alive){let neigh=0;for(const o of alive){const dd=(o.x-b.x)**2+(o.y-b.y)**2;if(dd<14000)neigh++;}
+      const spd=Math.hypot(b.vx,b.vy);const leadBonus=1-Math.min(1,(lead-b.y)/1200);
+      const score=neigh*1.6+spd*0.02+leadBonus*4;if(score>best){best=score;cx=b.x;cy=b.y;}}
+    fx=cx;fy=cy;const ys=alive.map(b=>b.y);const spread=Math.max(...ys)-Math.min(...ys);
+    fz=spread>900?0.95:spread>500?1.15:1.45;targetTimeScale=1;
+  }else targetTimeScale=1;
+  cam.tx=fx;cam.ty=fy;cam.tz=fz;
+  const k=1-Math.pow(0.001,dt);
+  cam.x+=(cam.tx-cam.x)*k*0.9;cam.y+=(cam.ty-cam.y)*k*0.9;cam.zoom+=(cam.tz-cam.zoom)*k*0.7;
+  timeScale+=(targetTimeScale-timeScale)*Math.min(1,dt*6);
+}
+function draw(){
+  ctx.clearRect(0,0,W,H);ctx.save();
+  const z=cam.zoom*Math.min(W/COURSE.VW,1.1);
+  ctx.translate(W/2,H*0.42);ctx.scale(z,z);ctx.translate(-cam.x,-cam.y);
+  ctx.fillStyle='rgba(255,255,255,.025)';ctx.fillRect(COURSE.wallPad,COURSE.top,COURSE.VW-COURSE.wallPad*2,COURSE.bottom-COURSE.top+200);
+  ctx.strokeStyle='#2a3866';ctx.lineWidth=6;ctx.beginPath();
+  ctx.moveTo(COURSE.wallPad,COURSE.top);ctx.lineTo(COURSE.wallPad,COURSE.bottom);
+  ctx.moveTo(COURSE.VW-COURSE.wallPad,COURSE.top);ctx.lineTo(COURSE.VW-COURSE.wallPad,COURSE.bottom);ctx.stroke();
+  ctx.lineCap='round';ctx.strokeStyle='#3b6cd6';ctx.lineWidth=10;
+  for(const w of walls){ctx.beginPath();ctx.moveTo(w.x1,w.y1);ctx.lineTo(w.x2,w.y2);ctx.stroke();}
+  ctx.fillStyle='#5d8bff';for(const p of pegs){ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,7);ctx.fill();}
+  for(const sp of spinners){ctx.save();ctx.translate(sp.x,sp.y);ctx.rotate(sp.a);
+    ctx.strokeStyle='#ffcb3d';ctx.lineWidth=12;ctx.lineCap='round';
+    for(let a=0;a<sp.arms;a++){const ang=a*Math.PI*2/sp.arms;ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(Math.cos(ang)*sp.r,Math.sin(ang)*sp.r);ctx.stroke();}
+    ctx.fillStyle='#1c75d4';ctx.beginPath();ctx.arc(0,0,14,0,7);ctx.fill();ctx.restore();}
+  for(let i=0;i*40<COURSE.VW;i++){ctx.fillStyle=i%2?'#fff':'#111';ctx.fillRect(COURSE.wallPad+i*40,finishY,40,18);}
+  ctx.fillStyle='rgba(255,203,61,.12)';ctx.fillRect(COURSE.wallPad,finishY,COURSE.VW-COURSE.wallPad*2,160);
+  const showName=$('#optName').checked;
+  for(const b of balls){
+    if(b.glow>0){ctx.save();ctx.globalAlpha=b.glow*0.6;ctx.fillStyle=b.color;
+      ctx.beginPath();ctx.arc(b.x,b.y,b.r+10*(1-b.glow)+8,0,7);ctx.fill();ctx.restore();b.glow-=0.02;}
+    ctx.fillStyle=b.done?'rgba(160,170,200,.5)':b.color;ctx.beginPath();ctx.arc(b.x,b.y,b.r,0,7);ctx.fill();
+    ctx.fillStyle='rgba(255,255,255,.5)';ctx.beginPath();ctx.arc(b.x-b.r*0.3,b.y-b.r*0.3,b.r*0.3,0,7);ctx.fill();
+    if(showName){ctx.font='700 13px Pretendard,sans-serif';ctx.textAlign='center';
+      ctx.lineWidth=3;ctx.strokeStyle='rgba(0,0,0,.7)';ctx.strokeText(b.name,b.x,b.y-b.r-5);
+      ctx.fillStyle='#fff';ctx.fillText(b.name,b.x,b.y-b.r-5);}
+  }
+  ctx.restore();
+}
+function loop(ts){
+  if(state==='idle'||state==='done')return;
+  if(!lastFrame)lastFrame=ts;let dt=(ts-lastFrame)/1000;lastFrame=ts;dt=Math.min(dt,0.033);
+  const sdt=dt*timeScale;
+  for(const sp of spinners)sp.a+=sp.va*sdt;
+  for(let s=0;s<3;s++)stepPhysics(sdt/3);
+  if(state==='running'||state==='finishing')elapsed+=dt;
+  if(state==='running'&&aliveCount<=Math.min(3,Math.max(2,Math.ceil(balls.length*0.06)))){
+    state='finishing';$('#phaseT').textContent='피날레 · 슬로우모션';}
+  if(aliveCount===0)finishWinner();
+  else if(aliveCount===1&&state==='finishing'){const c=balls.find(b=>!b.done);
+    if(c){if(Math.hypot(c.vx,c.vy)<8)c.vy+=40;if(elapsed>26){c.done=true;finishOrder.push(c);aliveCount=0;finishWinner();}}}
+  updateCamera(dt);draw();
+  $('#raceTimer').textContent=elapsed.toFixed(1);$('#aliveN').textContent=aliveCount;
+  rafId=requestAnimationFrame(loop);
+}
+function finishWinner(){
+  if(state==='done')return;state='done';
+  winner=finishOrder[finishOrder.length-1]||balls[0];
+  setTimeout(()=>{$('#game').classList.remove('show');$('#winner').classList.add('show');
+    $('#winName').textContent=winner?winner.name:'—';},600);
+}
+function startRace(){
+  names=Object.values(players);
+  if(names.length<2){alert('참가자가 2명 이상이어야 합니다.');return;}
+  buildCourse(names.length);
+  cam={x:COURSE.VW/2,y:200,zoom:1,tx:COURSE.VW/2,ty:200,tz:1};
+  state='running';elapsed=0;lastFrame=0;timeScale=1;targetTimeScale=1;
+  $('#phaseT').textContent='레이스 진행 중';
+  $('#host').classList.remove('show');$('#winner').classList.remove('show');$('#game').classList.add('show');
+  let c=3;const st=$('#status');st.innerHTML=`<div class="big">${c}</div>`;
+  const iv=setInterval(()=>{c--;if(c>0)st.innerHTML=`<div class="big">${c}</div>`;
+    else{st.innerHTML=`<div class="big" style="color:var(--gold)">GO!</div>`;setTimeout(()=>st.innerHTML='',700);clearInterval(iv);}},700);
+  rafId=requestAnimationFrame(loop);
+}
+function stopRace(){state='idle';if(rafId)cancelAnimationFrame(rafId);}
+
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+
+boot();
+</script>
+</body>
+</html>
