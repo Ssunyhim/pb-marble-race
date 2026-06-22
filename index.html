@@ -2848,7 +2848,7 @@ function resize(){DPR=Math.min(window.devicePixelRatio||1,2);W=window.innerWidth
 window.addEventListener('resize',resize);resize();
 
 const COURSE={VW:900,top:60,bottom:0,wallPad:30};
-let walls=[],pegs=[],spinners=[],balls=[],finishY=0;
+let walls=[],pegs=[],spinners=[],boosters=[],bumpers=[],balls=[],finishY=0;
 let names=[];
 const palette=['#ff5d5d','#ffb03a','#ffe14d','#5ddc8a','#41c7d8','#5d8bff','#a06bff','#ff6bd6','#ff8f5d','#7be0c0','#c0d35d','#e05d9c'];
 let cam={x:0,y:0,zoom:1,tx:0,ty:0,tz:1};
@@ -2856,33 +2856,48 @@ let raceSeed=20260707;
 let state='idle', elapsed=0, timeScale=1, targetTimeScale=1;
 let aliveCount=0, finishOrder=[], winner=null, lastFrame=0, rafId=0;
 
-const G=1650, REST=0.45, FR=0.985;
+const G=2000, REST=0.45, FR=0.985, BOOST=13;
 
 function buildCourse(n){
-  walls=[];pegs=[];spinners=[];balls=[];finishOrder=[];winner=null;
+  walls=[];pegs=[];spinners=[];boosters=[];bumpers=[];balls=[];finishOrder=[];winner=null;
   const VW=COURSE.VW;
-  const sections=Math.max(4,Math.min(5,Math.round(3+n/22)));
-  const segH=330, top=COURSE.top;
+  const sections=Math.max(5,Math.min(6,Math.round(4+n/24)));
+  const segH=350, top=COURSE.top;
   finishY=top+120+sections*segH+200; COURSE.bottom=finishY+160;
   walls.push({x1:VW*0.18,y1:top+40,x2:VW*0.40,y2:top+150});
   walls.push({x1:VW*0.82,y1:top+40,x2:VW*0.60,y2:top+150});
   const rng=mulberry32(raceSeed);
   for(let s=0;s<sections;s++){
-    const baseY=top+150+s*segH, kind=s%4;
-    if(kind===0){const rows=4,cols=7;for(let r=0;r<rows;r++){const yy=baseY+50+r*(segH-90)/rows;const off=(r%2)?VW/cols/2:0;
-      for(let c=0;c<cols;c++){const xx=VW*0.12+off+c*(VW*0.76/(cols-1));if(xx>VW*0.08&&xx<VW*0.92)pegs.push({x:xx,y:yy,r:9});}}}
-    else if(kind===1){for(let k=0;k<2;k++){const yy=baseY+60+k*(segH*0.45);const left=(k%2===0);
-      if(left)walls.push({x1:VW*0.04,y1:yy,x2:VW*0.62,y2:yy+segH*0.30});else walls.push({x1:VW*0.96,y1:yy,x2:VW*0.38,y2:yy+segH*0.30});}}
-    else if(kind===2){spinners.push({x:VW*0.32,y:baseY+segH*0.45,r:110,a:rng()*6,va:1.1,arms:4});
-      spinners.push({x:VW*0.68,y:baseY+segH*0.78,r:110,a:rng()*6,va:-1.1,arms:4});}
-    else{for(let k=0;k<3;k++){const yy=baseY+60+k*(segH*0.30);const left=(k%2===0);
-      if(left)walls.push({x1:VW*0.04,y1:yy,x2:VW*0.58,y2:yy+segH*0.22});else walls.push({x1:VW*0.96,y1:yy,x2:VW*0.42,y2:yy+segH*0.22});}}
+    const baseY=top+150+s*segH, kind=s%5;
+    if(kind===0){ // 핀 필드 + 하단 가속 패드
+      for(let r=0;r<4;r++){const yy=baseY+50+r*(segH-120)/4;const off=(r%2)?VW/7/2:0;
+        for(let c=0;c<7;c++){const xx=VW*0.12+off+c*(VW*0.76/6);if(xx>VW*0.08&&xx<VW*0.92)pegs.push({x:xx,y:yy,r:9});}}
+      boosters.push({x:VW*0.30,y:baseY+segH-40,w:VW*0.40,h:24});
+    }else if(kind===1){ // 경사 슈트 + 중앙 범퍼
+      for(let k=0;k<2;k++){const yy=baseY+60+k*(segH*0.45);const left=(k%2===0);
+        if(left)walls.push({x1:VW*0.04,y1:yy,x2:VW*0.62,y2:yy+segH*0.30});else walls.push({x1:VW*0.96,y1:yy,x2:VW*0.38,y2:yy+segH*0.30});}
+      bumpers.push({x:VW*0.5,y:baseY+segH*0.55,r:34,push:520});
+    }else if(kind===2){ // 빠른 풍차 2개
+      spinners.push({x:VW*0.30,y:baseY+segH*0.45,r:115,a:rng()*6,va:1.7,arms:3});
+      spinners.push({x:VW*0.70,y:baseY+segH*0.78,r:115,a:rng()*6,va:-1.7,arms:3});
+    }else if(kind===3){ // 중앙 분기 쐐기 + 양옆 가속 + 재합류 깔때기
+      walls.push({x1:VW*0.5,y1:baseY+40,x2:VW*0.36,y2:baseY+segH*0.5});
+      walls.push({x1:VW*0.5,y1:baseY+40,x2:VW*0.64,y2:baseY+segH*0.5});
+      boosters.push({x:VW*0.10,y:baseY+segH*0.55,w:VW*0.24,h:22});
+      boosters.push({x:VW*0.66,y:baseY+segH*0.55,w:VW*0.24,h:22});
+      walls.push({x1:VW*0.06,y1:baseY+segH*0.7,x2:VW*0.42,y2:baseY+segH*0.92});
+      walls.push({x1:VW*0.94,y1:baseY+segH*0.7,x2:VW*0.58,y2:baseY+segH*0.92});
+    }else{ // 좁은 협곡 병목 (순위 뒤섞임)
+      walls.push({x1:VW*0.04,y1:baseY+40,x2:VW*0.40,y2:baseY+segH*0.5});
+      walls.push({x1:VW*0.96,y1:baseY+40,x2:VW*0.60,y2:baseY+segH*0.5});
+      for(let k=0;k<3;k++){const yy=baseY+segH*0.55+k*40;pegs.push({x:VW*0.42,y:yy,r:9});pegs.push({x:VW*0.58,y:yy,r:9});}
+    }
   }
   walls.push({x1:VW*0.06,y1:finishY-200,x2:VW*0.40,y2:finishY-40});
   walls.push({x1:VW*0.94,y1:finishY-200,x2:VW*0.60,y2:finishY-40});
   const cols=Math.ceil(Math.sqrt(n*2)), spreadW=VW*0.6, spreadX=(VW-spreadW)/2;
   for(let i=0;i<n;i++){const cx=spreadX+(i%cols)*(spreadW/Math.max(1,cols-1||1));const cy=top+10-Math.floor(i/cols)*24;
-    balls.push({id:i,name:names[i],x:cx+(rng()-0.5)*10,y:cy,vx:(rng()-0.5)*30,vy:0,r:12,color:palette[i%palette.length],done:false,glow:0});}
+    balls.push({id:i,name:names[i],x:cx+(rng()-0.5)*10,y:cy,vx:(rng()-0.5)*30,vy:0,r:12,color:palette[i%palette.length],done:false,glow:0,boost:0});}
   aliveCount=n;
 }
 function collideSeg(b,w,surfV=0){const dx=w.x2-w.x1,dy=w.y2-w.y1,L2=dx*dx+dy*dy||1;
@@ -2895,8 +2910,15 @@ function stepPhysics(dt){
   const VW=COURSE.VW;
   for(const b of balls){if(b.done)continue;
     b.vy+=G*dt;b.vx*=FR;b.x+=b.vx*dt;b.y+=b.vy*dt;
+    if(b.boost>0)b.boost-=dt;
     if(b.x<COURSE.wallPad+b.r){b.x=COURSE.wallPad+b.r;b.vx=Math.abs(b.vx)*REST;}
     if(b.x>VW-COURSE.wallPad-b.r){b.x=VW-COURSE.wallPad-b.r;b.vx=-Math.abs(b.vx)*REST;}
+    // 가속 패드: 영역에 들어오면 아래로 가속
+    for(const bo of boosters){if(b.x>bo.x&&b.x<bo.x+bo.w&&Math.abs(b.y-bo.y)<bo.h){b.vy+=BOOST*dt*60;b.boost=0.35;}}
+    // 범퍼: 닿으면 강하게 튕김
+    for(const bp of bumpers){const dx=b.x-bp.x,dy=b.y-bp.y,rr=b.r+bp.r,d2=dx*dx+dy*dy;
+      if(d2<rr*rr){const d=Math.sqrt(d2)||0.001,nx=dx/d,ny=dy/d,ov=rr-d;b.x+=nx*ov;b.y+=ny*ov;
+        b.vx+=nx*bp.push;b.vy+=ny*bp.push*0.4;b.boost=0.3;bp.hit=0.3;}}
     for(const p of pegs){const dx=b.x-p.x,dy=b.y-p.y,rr=b.r+p.r,d2=dx*dx+dy*dy;
       if(d2<rr*rr){const d=Math.sqrt(d2)||0.001,nx=dx/d,ny=dy/d,ov=rr-d;b.x+=nx*ov;b.y+=ny*ov;
         const vn=b.vx*nx+b.vy*ny;b.vx-=(1+REST)*vn*nx;b.vy-=(1+REST)*vn*ny;b.vx+=(Math.random()-0.5)*22;}}
@@ -2948,8 +2970,34 @@ function draw(){
     ctx.fillStyle='#1c75d4';ctx.beginPath();ctx.arc(0,0,14,0,7);ctx.fill();ctx.restore();}
   for(let i=0;i*40<COURSE.VW;i++){ctx.fillStyle=i%2?'#fff':'#111';ctx.fillRect(COURSE.wallPad+i*40,finishY,40,18);}
   ctx.fillStyle='rgba(255,203,61,.12)';ctx.fillRect(COURSE.wallPad,finishY,COURSE.VW-COURSE.wallPad*2,160);
+  // 가속 패드 (아래 방향 화살표 줄무늬)
+  for(const bo of boosters){
+    ctx.save();
+    const g=ctx.createLinearGradient(0,bo.y-bo.h,0,bo.y+bo.h);
+    g.addColorStop(0,'rgba(93,220,138,0)');g.addColorStop(.5,'rgba(93,220,138,.55)');g.addColorStop(1,'rgba(93,220,138,0)');
+    ctx.fillStyle=g;ctx.fillRect(bo.x,bo.y-bo.h,bo.w,bo.h*2);
+    ctx.fillStyle='rgba(255,255,255,.85)';
+    const t=(Date.now()/200)%1;
+    for(let ax=bo.x+14;ax<bo.x+bo.w-6;ax+=28){
+      const yy=bo.y-bo.h+ t*bo.h*2;
+      ctx.beginPath();ctx.moveTo(ax,yy);ctx.lineTo(ax+8,yy);ctx.lineTo(ax+4,yy+8);ctx.closePath();ctx.fill();
+    }
+    ctx.restore();
+  }
+  // 범퍼 (튕김 원)
+  for(const bp of bumpers){
+    const hit=bp.hit>0; if(bp.hit>0)bp.hit-=0.03;
+    ctx.fillStyle=hit?'#ffe14d':'#ff6bd6';
+    ctx.beginPath();ctx.arc(bp.x,bp.y,bp.r+(hit?5:0),0,7);ctx.fill();
+    ctx.fillStyle='rgba(255,255,255,.85)';ctx.beginPath();ctx.arc(bp.x,bp.y,bp.r*0.45,0,7);ctx.fill();
+  }
   const showName=$('#optName').checked;
   for(const b of balls){
+    // 가속 꼬리
+    if(b.boost>0 && !b.done){
+      ctx.save();ctx.globalAlpha=Math.min(.6,b.boost*1.6);ctx.fillStyle=b.color;
+      ctx.beginPath();ctx.ellipse(b.x,b.y-b.r*1.1,b.r*0.7,b.r*1.8,0,0,7);ctx.fill();ctx.restore();
+    }
     if(b.glow>0){ctx.save();ctx.globalAlpha=b.glow*0.6;ctx.fillStyle=b.color;
       ctx.beginPath();ctx.arc(b.x,b.y,b.r+10*(1-b.glow)+8,0,7);ctx.fill();ctx.restore();b.glow-=0.02;}
     ctx.fillStyle=b.done?'rgba(160,170,200,.5)':b.color;ctx.beginPath();ctx.arc(b.x,b.y,b.r,0,7);ctx.fill();
@@ -2971,7 +3019,7 @@ function loop(ts){
     state='finishing';$('#phaseT').textContent='피날레 · 슬로우모션';}
   if(aliveCount===0)finishWinner();
   else if(aliveCount===1&&state==='finishing'){const c=balls.find(b=>!b.done);
-    if(c){if(Math.hypot(c.vx,c.vy)<8)c.vy+=40;if(elapsed>26){c.done=true;c.finishT=elapsed;finishOrder.push(c);aliveCount=0;finishWinner();}}}
+    if(c){if(Math.hypot(c.vx,c.vy)<8)c.vy+=40;if(elapsed>28){c.done=true;c.finishT=elapsed;finishOrder.push(c);aliveCount=0;finishWinner();}}}
   updateCamera(dt);draw();
   $('#raceTimer').textContent=elapsed.toFixed(1);$('#aliveN').textContent=aliveCount;
   rafId=requestAnimationFrame(loop);
