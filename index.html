@@ -117,6 +117,19 @@
   #winner .prize2{margin-top:18px;font-size:22px}#winner .prize2 b{color:var(--gold)}
   #winner .credit{margin-top:34px;color:var(--sub);font-size:13px;letter-spacing:2px}
   #winner button{margin-top:26px}
+  #rankWrap{margin-top:22px;width:min(440px,86vw)}
+  #rankToggle{margin-top:0;font-size:13px;padding:8px 14px}
+  #rankPanel{display:none;margin-top:12px;max-height:42vh;overflow:auto;text-align:left;
+    background:rgba(8,12,28,.6);border:1px solid var(--line);border-radius:14px;padding:8px}
+  #rankPanel.show{display:block}
+  .rrow{display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:10px;font-size:14px}
+  .rrow:nth-child(odd){background:rgba(255,255,255,.03)}
+  .rrow .pos{width:34px;font-weight:800;color:var(--sub);text-align:center;flex:none}
+  .rrow.win{background:rgba(255,203,61,.14);border:1px solid rgba(255,203,61,.35)}
+  .rrow.win .pos{color:var(--gold)}
+  .rrow .rname{flex:1;font-weight:700}
+  .rrow .rtime{color:var(--sub);font-size:12px;font-variant-numeric:tabular-nums}
+  .rrow .dot{width:12px;height:12px;border-radius:50%;flex:none}
   @keyframes pop{0%{transform:scale(.2);opacity:0}70%{transform:scale(1.15)}100%{transform:scale(1)}}
 </style>
 </head>
@@ -164,6 +177,12 @@
         <button class="bad" id="closeBtn" style="display:none">참가 마감 ■</button>
         <label class="seconds">제한시간 <input type="number" id="limitSec" value="60" min="0" max="600"> 초</label>
         <button class="ghost" id="resetBtn">명단 초기화</button>
+      </div>
+      <div class="ctrls" style="margin-top:-2px">
+        <label class="seconds" style="background:rgba(93,220,138,.08);border-color:rgba(93,220,138,.3)">🧪 테스트
+          <input type="number" id="testN" value="20" min="2" max="60"> 명</label>
+        <button class="ghost" id="testBtn" style="border-color:rgba(93,220,138,.4);color:#bdf5cf">가짜 참가자 채우기</button>
+        <span class="timer" id="testNote" style="align-self:center"></span>
       </div>
 
       <div class="count">참가자 <b id="cnt">0</b>명</div>
@@ -228,7 +247,14 @@
     <div class="name" id="winName">—</div>
     <div class="prize2">🎁 기프트카드 <b>50,000원</b> 주인공!</div>
     <div class="credit">PB 마케팅본부 · Produced by 오새힘</div>
-    <button class="gold" id="againBtn">다시 하기</button>
+    <div id="rankWrap">
+      <button class="ghost" id="rankToggle">📋 최종 순위 보기</button>
+      <div id="rankPanel"></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:14px">
+      <button class="gold" id="againBtn">같은 명단으로 다시</button>
+      <button class="ghost" id="toHostBtn">진행자 화면으로</button>
+    </div>
   </div>
 
 </div>
@@ -2657,9 +2683,56 @@ function startHost(){
   $('#openBtn').onclick=openJoin;
   $('#closeBtn').onclick=()=>closeJoin(true);
   $('#resetBtn').onclick=resetPlayers;
-  $('#startBtn').onclick=()=>{ closeJoin(false); startRace(); };
+  $('#startBtn').onclick=()=>{ confirmStart(false); };
+  $('#testBtn').onclick=fillTestPlayers;
   $('#backBtn').onclick=()=>{stopRace();$('#game').classList.remove('show');$('#winner').classList.remove('show');$('#host').classList.add('show');};
-  $('#againBtn').onclick=()=>{$('#winner').classList.remove('show');$('#host').classList.add('show');};
+  $('#againBtn').onclick=()=>{$('#winner').classList.remove('show');startRace();}; // 같은 명단으로 다시
+  $('#toHostBtn').onclick=()=>{$('#winner').classList.remove('show');$('#host').classList.add('show');testNames=null;updateTestNote();};
+  $('#rankToggle').onclick=()=>{$('#rankPanel').classList.toggle('show');
+    $('#rankToggle').textContent=$('#rankPanel').classList.contains('show')?'📋 순위 접기':'📋 최종 순위 보기';};
+}
+
+/* ---------- 테스트 모드: 가짜 참가자 (Firebase 미사용) ---------- */
+let testNames=null;  // null이면 실제 DB명단 사용, 배열이면 테스트 명단 사용
+const TEST_POOL=['오새힘','김민준','이서연','박지후','최예린','정도윤','강하은','조시우','윤서아','임건우',
+  '한지민','오현우','신유나','배준서','문채원','홍지우','권태양','류하린','남도현','서아인',
+  '곽민서','성지호','차은우','구다은','진서준','노하율','심예준','우지안','방서현','석하준',
+  '추민재','전소율','석우진','맹지후','피서연','탁준영','경하은','설도현','봉예나','감시우',
+  '갈민준','마서아','목지율','반하준','삼다은','아준서','자예린','카도윤','타하은','파지우'];
+function fillTestPlayers(){
+  const n=Math.max(2,Math.min(60,parseInt($('#testN').value||'20',10)));
+  testNames=TEST_POOL.slice(0,n);
+  updateTestNote();
+  renderPlayers(); // 화면에 테스트 명단 즉시 표시
+}
+function updateTestNote(){
+  $('#testNote').textContent = testNames ? `🧪 테스트 ${testNames.length}명 대기 (실제 명단 아님)` : '';
+}
+
+/* ---------- 시작 전 확인 ---------- */
+function confirmStart(isTest){
+  const list=currentNames();
+  if(list.length<2){alert('참가자가 2명 이상이어야 합니다.');return;}
+  const tag=testNames?' [테스트]':'';
+  if(!confirm(`${list.length}명${tag}으로 레이스를 시작할까요?\n시작하면 중간에 멈출 수 없습니다.`))return;
+  if(!testNames) closeJoin(false);
+  startRace();
+}
+/* 현재 사용할 명단: 테스트 명단 우선, 없으면 DB 명단 */
+function currentNames(){
+  if(testNames) return testNames.slice();
+  return dedupeNames(Object.values(players));
+}
+/* 중복 이름 → "이름 (2)", 빈칸 제거 */
+function dedupeNames(arr){
+  const seen={}, out=[];
+  for(let raw of arr){
+    const n=String(raw||'').trim();
+    if(!n) continue;
+    if(seen[n]){ seen[n]++; out.push(`${n} (${seen[n]})`); }
+    else { seen[n]=1; out.push(n); }
+  }
+  return out;
 }
 
 let countdownIv=null;
@@ -2698,12 +2771,22 @@ function updateStateUI(st){
   }
 }
 function renderPlayers(){
+  // 테스트 명단이 있으면 그걸 표시 (삭제 불가, 칩만 표시)
+  if(testNames){
+    $('#cnt').textContent=testNames.length;
+    $('#liveCnt').textContent=testNames.length;
+    $('#plist').innerHTML=testNames.map(n=>
+      `<span class="chip" style="border-color:rgba(93,220,138,.4)">${escapeHtml(n)}</span>`).join('');
+    $('#startBtn').disabled=testNames.length<2;
+    return;
+  }
   const entries=Object.entries(players);
-  $('#cnt').textContent=entries.length;
-  $('#liveCnt').textContent=entries.length;
+  const shownCount=dedupeNames(Object.values(players)).length;
+  $('#cnt').textContent=shownCount;
+  $('#liveCnt').textContent=shownCount;
   $('#plist').innerHTML=entries.map(([id,n])=>
     `<span class="chip">${escapeHtml(n)}<span class="x" data-id="${id}">✕</span></span>`).join('');
-  $('#startBtn').disabled=entries.length<2;
+  $('#startBtn').disabled=shownCount<2;
   $('#plist').querySelectorAll('.x').forEach(x=>x.onclick=()=>remove(ref(db,`${GAME}/players/${x.dataset.id}`)));
 }
 function escapeHtml(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
@@ -2769,6 +2852,7 @@ let walls=[],pegs=[],spinners=[],balls=[],finishY=0;
 let names=[];
 const palette=['#ff5d5d','#ffb03a','#ffe14d','#5ddc8a','#41c7d8','#5d8bff','#a06bff','#ff6bd6','#ff8f5d','#7be0c0','#c0d35d','#e05d9c'];
 let cam={x:0,y:0,zoom:1,tx:0,ty:0,tz:1};
+let raceSeed=20260707;
 let state='idle', elapsed=0, timeScale=1, targetTimeScale=1;
 let aliveCount=0, finishOrder=[], winner=null, lastFrame=0, rafId=0;
 
@@ -2782,7 +2866,7 @@ function buildCourse(n){
   finishY=top+120+sections*segH+200; COURSE.bottom=finishY+160;
   walls.push({x1:VW*0.18,y1:top+40,x2:VW*0.40,y2:top+150});
   walls.push({x1:VW*0.82,y1:top+40,x2:VW*0.60,y2:top+150});
-  const rng=mulberry32(20260707);
+  const rng=mulberry32(raceSeed);
   for(let s=0;s<sections;s++){
     const baseY=top+150+s*segH, kind=s%4;
     if(kind===0){const rows=4,cols=7;for(let r=0;r<rows;r++){const yy=baseY+50+r*(segH-90)/rows;const off=(r%2)?VW/cols/2:0;
@@ -2819,7 +2903,7 @@ function stepPhysics(dt){
     for(const w of walls)collideSeg(b,w);
     for(const sp of spinners)for(let a=0;a<sp.arms;a++){const ang=sp.a+a*Math.PI*2/sp.arms;
       collideSeg(b,{x1:sp.x,y1:sp.y,x2:sp.x+Math.cos(ang)*sp.r,y2:sp.y+Math.sin(ang)*sp.r},sp.va*sp.r);}
-    if(!b.done&&b.y>=finishY){b.done=true;b.glow=1;finishOrder.push(b);aliveCount--;}
+    if(!b.done&&b.y>=finishY){b.done=true;b.glow=1;b.finishT=elapsed;finishOrder.push(b);aliveCount--;}
   }
   for(let i=0;i<balls.length;i++){const a=balls[i];if(a.done)continue;
     for(let j=i+1;j<balls.length;j++){const b=balls[j];if(b.done)continue;
@@ -2887,7 +2971,7 @@ function loop(ts){
     state='finishing';$('#phaseT').textContent='피날레 · 슬로우모션';}
   if(aliveCount===0)finishWinner();
   else if(aliveCount===1&&state==='finishing'){const c=balls.find(b=>!b.done);
-    if(c){if(Math.hypot(c.vx,c.vy)<8)c.vy+=40;if(elapsed>26){c.done=true;finishOrder.push(c);aliveCount=0;finishWinner();}}}
+    if(c){if(Math.hypot(c.vx,c.vy)<8)c.vy+=40;if(elapsed>26){c.done=true;c.finishT=elapsed;finishOrder.push(c);aliveCount=0;finishWinner();}}}
   updateCamera(dt);draw();
   $('#raceTimer').textContent=elapsed.toFixed(1);$('#aliveN').textContent=aliveCount;
   rafId=requestAnimationFrame(loop);
@@ -2895,12 +2979,35 @@ function loop(ts){
 function finishWinner(){
   if(state==='done')return;state='done';
   winner=finishOrder[finishOrder.length-1]||balls[0];
+  buildRanking();
   setTimeout(()=>{$('#game').classList.remove('show');$('#winner').classList.add('show');
-    $('#winName').textContent=winner?winner.name:'—';},600);
+    $('#winName').textContent=winner?winner.name:'—';
+    $('#rankPanel').classList.remove('show');
+    $('#rankToggle').textContent='📋 최종 순위 보기';},600);
+}
+/* 최종 순위: 마지막 도착(우승)=1위 → 먼저 떨어진 순으로 내려감 */
+function buildRanking(){
+  const total=finishOrder.length;
+  // finishOrder[0]=가장 먼저 떨어짐(꼴찌), finishOrder[last]=우승(1위)
+  const ranked=finishOrder.slice().reverse(); // 1위(우승)부터
+  let html='';
+  ranked.forEach((b,i)=>{
+    const pos=i+1;
+    const medal = pos===1?'🥇':pos===2?'🥈':pos===3?'🥉':`${pos}`;
+    const t = b.finishT!=null ? b.finishT.toFixed(1)+'s' : '-';
+    html+=`<div class="rrow ${pos===1?'win':''}">`
+        + `<div class="pos">${medal}</div>`
+        + `<div class="dot" style="background:${b.color}"></div>`
+        + `<div class="rname">${escapeHtml(b.name)}</div>`
+        + `<div class="rtime">${pos===1?'끝까지 생존 🏆':'생존 '+t}</div>`
+        + `</div>`;
+  });
+  $('#rankPanel').innerHTML=html;
 }
 function startRace(){
-  names=Object.values(players);
+  names=currentNames();
   if(names.length<2){alert('참가자가 2명 이상이어야 합니다.');return;}
+  raceSeed=(Math.random()*1e9)>>>0;   // 매 레이스 코스/스폰 달라지게
   buildCourse(names.length);
   cam={x:COURSE.VW/2,y:200,zoom:1,tx:COURSE.VW/2,ty:200,tz:1};
   state='running';elapsed=0;lastFrame=0;timeScale=1;targetTimeScale=1;
